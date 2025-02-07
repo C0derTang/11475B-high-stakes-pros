@@ -1,36 +1,36 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
-#include "pros/abstract_motor.hpp"
-#include "pros/motor_group.hpp"
 
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
-pros::Motor tL(16, pros::MotorGears::green);
-pros::Motor mL(9, pros::MotorGears::blue);
-pros::Motor bL(-10, pros::MotorGears::blue);
+pros::Motor tL(1, pros::MotorGears::green);
+pros::Motor mL(2, pros::MotorGears::blue);
+pros::Motor bL(-3, pros::MotorGears::blue);
 
-pros::Motor tR(-3, pros::MotorGears::green);
-pros::Motor mR(-2, pros::MotorGears::blue);
-pros::Motor bR(1, pros::MotorGears::blue);
+pros::Motor tR(-10, pros::MotorGears::green);
+pros::Motor mR(-9, pros::MotorGears::blue);
+pros::Motor bR(7, pros::MotorGears::blue);
 
-pros::MotorGroup leftMotors({16, 9, -10});
-pros::MotorGroup rightMotors({-3, -2, 1});
+pros::MotorGroup leftMotors({1, 2, -3});
+pros::MotorGroup rightMotors({-10, -9, 7});
 
 pros::adi::DigitalOut clamp('c');
 
-pros::Motor firstStageIntake(7, pros::MotorGears::blue);
-pros::Motor secondStageIntake(6, pros::MotorGears::blue);
+pros::Motor firstStageIntake(11, pros::MotorGears::blue);
+pros::Motor secondStageIntake(16, pros::MotorGears::blue);
 
-pros::MotorGroup intake({7, 6});
+pros::MotorGroup intake({11, 16});
 
-pros::Motor rightArmMotor(-4, pros::MotorGears::green);
-pros::Motor leftArmMotor(5, pros::MotorGears::green);
-pros::MotorGroup armMotor({-4, 5});
+pros::MotorGroup armMotor({-6, 4});
 
+pros::Optical optical(20);
+pros::IMU inertial(19);
+// ai vision 13
+pros::Distance distanceSensor(12);
 
 lemlib::Drivetrain drivetrain(&leftMotors,
 							&rightMotors,
-							10,
+							14.55,
 							lemlib::Omniwheel::NEW_275,
 							400,
 							8);
@@ -58,16 +58,16 @@ Toggle clampLatch(2);
 Toggle armLatch(3);
 
 
-pros::adi::Encoder leftEncoder({15,'a', 'b'});
-pros::adi::Encoder rightEncoder({15,'e', 'f'});
-pros::adi::Encoder backEncoder({15,'c', 'd'});
+pros::adi::Encoder leftEncoder({14,'a', 'b'}, true);
+pros::adi::Encoder rightEncoder({14,'f', 'e'}, true);
+pros::adi::Encoder backEncoder({14,'c', 'd'}, true);
 
-pros::adi::Encoder armEncoder('A', 'B');
+pros::adi::Encoder armEncoder('a', 'b');
 
 
 lemlib::TrackingWheel leftWheel(&leftEncoder, lemlib::Omniwheel::NEW_275, -4.5);
 lemlib::TrackingWheel rightWheel(&rightEncoder, lemlib::Omniwheel::NEW_275, 4.5);
-lemlib::TrackingWheel backWheel(&backEncoder, lemlib::Omniwheel::NEW_275, -1.75);
+lemlib::TrackingWheel backWheel(&backEncoder, lemlib::Omniwheel::NEW_275, 1.9);
 
 lemlib::OdomSensors odom(&leftWheel,
 						&rightWheel,
@@ -140,17 +140,21 @@ lemlib::Chassis chassis(drivetrain,
 void initialize() {
     pros::lcd::initialize(); // initialize brain screen
     chassis.calibrate(); // calibrate sensors
-	armEncoder.reset();
-
 	armMotor.set_brake_mode_all(pros::MotorBrake::hold);
+	intake.set_brake_mode_all(pros::MotorBrake::brake);
+	armEncoder.reset();
+	
 
     // print position to brain screen
     pros::Task screen_task([&]() {
         while (true) {
+			double x = armEncoder.get_value();
+			pros::lcd::print(0, "armreading: %f", x); // x
             // print robot location to the brain screen
-            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
+			
+            pros::lcd::print(1, "X: %f", chassis.getPose().x); // x
+            pros::lcd::print(2, "Y: %f", chassis.getPose().y); // y
+            pros::lcd::print(3, "Theta: %f", chassis.getPose().theta); // heading
             // delay to save resources
             pros::delay(20);
         }
@@ -202,7 +206,7 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	
+
 	double desiredPos = 0;
 	while(true){
 		int lateral = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
@@ -219,8 +223,8 @@ void opcontrol() {
 
 		armLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R2));
 		if (armLatch.state == 0) desiredPos = 0;
-		else if (armLatch.state == 1) desiredPos = 75;
-		else if (armLatch.state == 2) desiredPos = 620;
+		else if (armLatch.state == 1) desiredPos = 124;
+		else if (armLatch.state == 2) desiredPos = 666;
 		double output = armPID.update(desiredPos - armEncoder.get_value());
 		armMotor.move_velocity(output);
 		
