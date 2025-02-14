@@ -84,7 +84,7 @@ lemlib::OdomSensors odom(&leftWheel,
 
 
 lemlib::ControllerSettings lateralPID(25,
-									1,
+									.5,
 									70,
 									3,
 									1,
@@ -196,22 +196,57 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {
+void redRingRush(){
 	chassis.setPose(8.5,-12,180);
-	chassis.moveToPose(18, 28, 215, 2500, {.forwards=false,  .horizontalDrift=8, .lead=.3,});
-	pros::delay(1200);
+	chassis.moveToPose(18, 28, 222, 1350, {.forwards=false,  .horizontalDrift=8, .lead=.3,}, false);
 	doinker.set_value(true);
-	pros::delay(300);
+	pros::delay(250);
 	chassis.moveToPose(12, 12, 180, 2000, {.horizontalDrift=8, .lead=.3,});
-	pros::delay(900);
+	pros::delay(700);
 	doinker.set_value(false);
-	chassis.moveToPose(0, 24, 315, 2000, {.horizontalDrift=8, .lead=.3,});
-	pros::delay(900);
+	chassis.moveToPoint(-12, 36, 1300,{.maxSpeed=80}, false);
 	clamp.set_value(true);
-	intake.move_velocity(600);
-	pros::delay(1000);
+	pros::delay(300);
+	chassis.moveToPoint(12, 12, 1400,{.forwards=false}, false);
+	intake.move_velocity(500);
+	pros::delay(2000);
+	chassis.moveToPose(30, 32, 180, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3,}, false);
+	pros::delay(10000);
 	intake.move_velocity(0);
+	
 	pros::delay(15000);
+}
+
+void blueRingRush(){
+	chassis.setPose(-8.5,-12,180);
+	chassis.moveToPose(-15, 32, 170, 1500, {.forwards=false,   .horizontalDrift=8, .lead=.3, .maxSpeed=110,}, false);
+	doinker.set_value(true);
+	pros::delay(450);
+	chassis.moveToPose(-12, 12, 180, 2000, {.horizontalDrift=8, .lead=.3,});
+	pros::delay(700);
+	doinker.set_value(false);
+	chassis.moveToPoint(15, 39, 1300,{.maxSpeed=80}, false);
+	clamp.set_value(true);
+	pros::delay(300);
+	chassis.moveToPoint(-12, 12, 1400,{.forwards=false}, false);
+	pros::delay(500);
+	intake.move_velocity(500);
+	pros::delay(2000);
+	chassis.moveToPose(-30, 28, 180, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3,}, false);
+	pros::delay(10000);
+	intake.move_velocity(0);
+	
+	pros::delay(15000);
+}
+
+void redFarSide(){
+	chassis.setPose(-8.5,-12,0);
+
+}
+
+
+void autonomous() {
+	blueRingRush();
 }
 
 /**
@@ -252,7 +287,7 @@ void opcontrol() {
 			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-500);
 			else intake.move_velocity(0);
 
-            pros::delay(2);
+            pros::delay(20);
         }
     });
 

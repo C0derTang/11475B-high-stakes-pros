@@ -1,7 +1,7 @@
 {
   "py/object": "pros.conductor.project.Project",
   "py/state": {
-    "project_name": "dev",
+    "project_name": "blueRingRush",
     "target": "v5",
     "templates": {
       "LemLib": {
@@ -298,8 +298,8 @@
       }
     },
     "upload_options": {
-      "icon": "pros",
-      "slot": 6
+      "icon": "planet",
+      "slot": 2
     },
     "use_early_access": false
   }
