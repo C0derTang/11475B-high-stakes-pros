@@ -1,27 +1,32 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
+#include "pros/adi.hpp"
+#include "pros/device.hpp"
+#include "pros/rtos.hpp"
 
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
 pros::Motor tL(1, pros::MotorGears::green);
-pros::Motor mL(2, pros::MotorGears::blue);
-pros::Motor bL(-3, pros::MotorGears::blue);
+pros::Motor mL(3, pros::MotorGears::blue);
+pros::Motor bL(-4, pros::MotorGears::blue);
 
 pros::Motor tR(-10, pros::MotorGears::green);
 pros::Motor mR(-9, pros::MotorGears::blue);
 pros::Motor bR(7, pros::MotorGears::blue);
 
-pros::MotorGroup leftMotors({1, 2, -3});
+pros::MotorGroup leftMotors({1, 3, -4});
 pros::MotorGroup rightMotors({-10, -9, 7});
 
 pros::adi::DigitalOut clamp('c');
+pros::adi::DigitalOut doinker('d');
+\
 
 pros::Motor firstStageIntake(11, pros::MotorGears::blue);
 pros::Motor secondStageIntake(16, pros::MotorGears::blue);
 
 pros::MotorGroup intake({11, 16});
 
-pros::MotorGroup armMotor({-6, 4});
+pros::MotorGroup armMotor({-6, 5});
 
 pros::Optical optical(20);
 pros::IMU inertial(19);
@@ -56,7 +61,7 @@ struct Toggle{
 
 Toggle clampLatch(2);
 Toggle armLatch(3);
-
+Toggle doinkerLatch(2);
 
 pros::adi::Encoder leftEncoder({14,'a', 'b'}, true);
 pros::adi::Encoder rightEncoder({14,'f', 'e'}, true);
@@ -70,34 +75,35 @@ lemlib::TrackingWheel rightWheel(&rightEncoder, lemlib::Omniwheel::NEW_275, 4.5)
 lemlib::TrackingWheel backWheel(&backEncoder, lemlib::Omniwheel::NEW_275, 1.9);
 
 lemlib::OdomSensors odom(&leftWheel,
-						&rightWheel,
+						nullptr,
 						&backWheel,
 						nullptr,
-						nullptr
+						&inertial
 );
 
 
 
-lemlib::ControllerSettings lateralPID(10,
-									0,
-									3,
-									3,
+lemlib::ControllerSettings lateralPID(25,
 									1,
-									100,
-									3,
-									500,
-									20
-);
-
-lemlib::ControllerSettings steeringPID(2,
-									0,
-									10,
+									70,
 									3,
 									1,
 									100,
 									3,
 									500,
 									0
+);
+
+lemlib::ControllerSettings steeringPID(6,
+									0,
+									34,
+									3,
+									1,
+									100,
+									3,
+									500,
+									0
+
 );
 
 lemlib::PID armPID(1,
@@ -148,8 +154,8 @@ void initialize() {
     // print position to brain screen
     pros::Task screen_task([&]() {
         while (true) {
-			double x = armEncoder.get_value();
-			pros::lcd::print(0, "armreading: %f", x); // x
+			double x = optical.get_hue();
+			pros::lcd::print(0, "Hue: %f", x); // x
             // print robot location to the brain screen
 			
             pros::lcd::print(1, "X: %f", chassis.getPose().x); // x
@@ -190,7 +196,23 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+	chassis.setPose(8.5,-12,180);
+	chassis.moveToPose(18, 28, 215, 2500, {.forwards=false,  .horizontalDrift=8, .lead=.3,});
+	pros::delay(1200);
+	doinker.set_value(true);
+	pros::delay(300);
+	chassis.moveToPose(12, 12, 180, 2000, {.horizontalDrift=8, .lead=.3,});
+	pros::delay(900);
+	doinker.set_value(false);
+	chassis.moveToPose(0, 24, 315, 2000, {.horizontalDrift=8, .lead=.3,});
+	pros::delay(900);
+	clamp.set_value(true);
+	intake.move_velocity(600);
+	pros::delay(1000);
+	intake.move_velocity(0);
+	pros::delay(15000);
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -205,26 +227,56 @@ void autonomous() {}
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
+
+
 void opcontrol() {
 
+    pros::Task intakeFilter([&]() {
+		int targetType = 1;
+		//optical.set_led_pwm(100);
+        while (true) {
+			double value = 0;//optical.get_hue();
+			// 0 is none, 1 is red, 2 is blue;
+			int ringType = 0;
+			if (value >= 10 && value <= 40) ringType = 1;
+			else if (value >= 180) ringType = 2;
+			if (ringType!= 0 && ringType != targetType){
+				intake.move_velocity(600);
+				pros::delay(110);
+				intake.move_velocity(0);
+				pros::delay(400);
+				continue;
+			}
+			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(500);
+			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-500);
+			else intake.move_velocity(0);
+
+            pros::delay(2);
+        }
+    });
+
 	double desiredPos = 0;
+
 	while(true){
 		int lateral = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
 		int steering = sticks.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+		//blue is 180 220
+		//red is 10 40
 
 		chassis.arcade(lateral, steering, false, .6);
 		
-		if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(600);
-		else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-600);
-		else intake.move_velocity(0);
-
 		clampLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R1));
 		clamp.set_value(clampLatch.state);
 
-		armLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R2));
+		doinkerLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_UP));
+		doinker.set_value(doinkerLatch.state);
+
+
+		armLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_Y));
 		if (armLatch.state == 0) desiredPos = 0;
 		else if (armLatch.state == 1) desiredPos = 124;
-		else if (armLatch.state == 2) desiredPos = 666;
+		else if (armLatch.state == 2) desiredPos = 690;
 		double output = armPID.update(desiredPos - armEncoder.get_value());
 		armMotor.move_velocity(output);
 		
