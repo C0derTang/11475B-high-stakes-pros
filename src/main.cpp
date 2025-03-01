@@ -1,8 +1,9 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
-#include "pros/adi.hpp"
-#include "pros/device.hpp"
-#include "pros/rtos.hpp"
+
+lv_obj_t* image;
+LV_IMG_DECLARE(robotics);
+
 
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
@@ -19,7 +20,6 @@ pros::MotorGroup rightMotors({-10, -9, 7});
 
 pros::adi::DigitalOut clamp('c');
 pros::adi::DigitalOut doinker('d');
-\
 
 pros::Motor firstStageIntake(11, pros::MotorGears::blue);
 pros::Motor secondStageIntake(16, pros::MotorGears::blue);
@@ -62,6 +62,7 @@ struct Toggle{
 Toggle clampLatch(2);
 Toggle armLatch(3);
 Toggle doinkerLatch(2);
+Toggle ringType(2);
 
 pros::adi::Encoder leftEncoder({14,'a', 'b'}, true);
 pros::adi::Encoder rightEncoder({14,'f', 'e'}, true);
@@ -143,15 +144,21 @@ lemlib::Chassis chassis(drivetrain,
  * All other competition modes are blocked by initialize; it is recommended
  * to keep execution time for this mode under a few seconds.
  */
+ int targetType = 1;
 void initialize() {
     pros::lcd::initialize(); // initialize brain screen
     chassis.calibrate(); // calibrate sensors
 	armMotor.set_brake_mode_all(pros::MotorBrake::hold);
 	intake.set_brake_mode_all(pros::MotorBrake::brake);
 	armEncoder.reset();
-	
 
+	image = lv_img_create(lv_scr_act());
+	lv_img_set_src(image, &robotics);
+	lv_obj_set_size(image, 480, 240);
+	lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
+	
     // print position to brain screen
+	/*
     pros::Task screen_task([&]() {
         while (true) {
 			double x = optical.get_hue();
@@ -164,7 +171,8 @@ void initialize() {
             // delay to save resources
             pros::delay(20);
         }
-    });
+    });*/
+	
 }
 
 /**
@@ -200,8 +208,8 @@ void redRingRush(){
 	chassis.setPose(8.5,-12,180);
 	chassis.moveToPose(18, 28, 222, 1350, {.forwards=false,  .horizontalDrift=8, .lead=.3,}, false);
 	doinker.set_value(true);
-	pros::delay(250);
-	chassis.moveToPose(12, 12, 180, 2000, {.horizontalDrift=8, .lead=.3,});
+	pros::delay(300);
+	chassis.moveToPose(12, 12, 180, 4000, {.horizontalDrift=8, .lead=.3,});
 	pros::delay(700);
 	doinker.set_value(false);
 	chassis.moveToPoint(-12, 36, 1300,{.maxSpeed=80}, false);
@@ -209,7 +217,7 @@ void redRingRush(){
 	pros::delay(300);
 	chassis.moveToPoint(12, 12, 1400,{.forwards=false}, false);
 	intake.move_velocity(500);
-	pros::delay(2000);
+	pros::delay(4000);
 	chassis.moveToPose(30, 32, 180, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3,}, false);
 	pros::delay(10000);
 	intake.move_velocity(0);
@@ -222,7 +230,7 @@ void blueRingRush(){
 	chassis.moveToPose(-15, 32, 170, 1500, {.forwards=false,   .horizontalDrift=8, .lead=.3, .maxSpeed=110,}, false);
 	doinker.set_value(true);
 	pros::delay(450);
-	chassis.moveToPose(-12, 12, 180, 2000, {.horizontalDrift=8, .lead=.3,});
+	chassis.moveToPose(-12, 12, 180, 4000, {.horizontalDrift=8, .lead=.3,});
 	pros::delay(700);
 	doinker.set_value(false);
 	chassis.moveToPoint(15, 39, 1300,{.maxSpeed=80}, false);
@@ -231,12 +239,109 @@ void blueRingRush(){
 	chassis.moveToPoint(-12, 12, 1400,{.forwards=false}, false);
 	pros::delay(500);
 	intake.move_velocity(500);
+	pros::delay(1000);
+	chassis.moveToPose(-30, 28, 180, 2000, {.forwards=false, .horizontalDrift=8, .lead=.3,}, false);
 	pros::delay(2000);
-	chassis.moveToPose(-30, 28, 180, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3,}, false);
-	pros::delay(10000);
+	chassis.turnToHeading(0, 1400);
 	intake.move_velocity(0);
 	
 	pros::delay(15000);
+}
+
+void skills(){
+	int desiredPos = 0;
+	pros::Task armControl([&]() {
+        while (true) {
+			double output = armPID.update(desiredPos - armEncoder.get_value());
+			armMotor.move_velocity(output);	
+            pros::delay(20);
+        }
+    });
+
+	
+
+	chassis.setPose(-1,-13,180);
+	//preload
+	intake.move_velocity(600);
+	pros::delay(800);
+	intake.move_velocity(0);
+	//getfirstclamp
+	chassis.moveToPose(0, 0, 180, 2000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	chassis.moveToPose(-24, 0, 270, 4000, {.horizontalDrift=8, .lead=.3, .maxSpeed=110});
+	pros::delay(1200);
+	clamp.set_value(true);
+	pros::delay(300);
+	//go for first 2 disks
+	intake.move_velocity(550);
+	chassis.moveToPose(-24, 24, 180, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	chassis.moveToPose(-48, 24, 135, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(500);
+	//prep and get arm
+	desiredPos=124;
+	chassis.moveToPose(-60, 48, 90, 2000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(1000);
+	intake.move_velocity(0);
+	desiredPos=666;
+	pros::delay(500);
+	chassis.moveToPose(-48, 48, 90, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	desiredPos=0;
+	// more rings
+	intake.move_velocity(600);
+	chassis.moveToPose(-48, 10, 0, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(400);
+	chassis.moveToPose(-48, 0, 0, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(500);
+	chassis.moveToPose(-48, 10, 0, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	chassis.moveToPose(-60, 0, 90, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	//push into corner
+	chassis.moveToPose(-60, -12, 225, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	clamp.set_value(false);
+	chassis.moveToPose(-48, 0, 225, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+
+
+	//MIRROR
+	chassis.moveToPose(24, 0, 90, 5000, { .horizontalDrift=8, .lead=.3, .maxSpeed=80,}, false);
+	clamp.set_value(true);
+	pros::delay(300);
+	//go for first 2 disks
+	intake.move_velocity(550);
+	chassis.moveToPose(24, 24, 180, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	chassis.moveToPose(48, 24, 225, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(500);
+	//prep and get arm
+	desiredPos=124;
+	chassis.moveToPose(60, 48, 270, 2000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(1000);
+	intake.move_velocity(0);
+	desiredPos=666;
+	pros::delay(500);
+	chassis.moveToPose(48, 48, 270, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	desiredPos=0;
+	// more rings
+	intake.move_velocity(600);
+	chassis.moveToPose(48, 10, 0, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(400);
+	chassis.moveToPose(48, 0, 0, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	pros::delay(500);
+	chassis.moveToPose(48, 10, 0, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	chassis.moveToPose(60, 0, 270, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+	//push into corner
+	chassis.moveToPose(60, -12, 135, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	clamp.set_value(false);
+
+	chassis.moveToPose(20, 104, 225, 5000, {.horizontalDrift=8, .lead=.3}, false);
+	clamp.set_value(true);
+	pros::delay(300);
+	chassis.moveToPose(60, 108, 45, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	clamp.set_value(false);
+	chassis.moveToPose(-24, 108, 270, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	clamp.set_value(true);
+	pros::delay(300);
+	chassis.moveToPose(-60, 108, 315, 4000, {.horizontalDrift=8, .lead=.3}, false);
+	clamp.set_value(false);
+	chassis.moveToPose(0, 0, 315, 4000, {.forwards=false, .horizontalDrift=8, .lead=.3}, false);
+
+
 }
 
 void redFarSide(){
@@ -246,7 +351,8 @@ void redFarSide(){
 
 
 void autonomous() {
-	blueRingRush();
+	chassis.setPose(0,0,0);
+	chassis.moveToPose(0, 7, 0, 2000);
 }
 
 /**
@@ -266,40 +372,39 @@ void autonomous() {
 
 
 void opcontrol() {
-
     pros::Task intakeFilter([&]() {
-		int targetType = 1;
-		//optical.set_led_pwm(100);
+		optical.set_led_pwm(100);
         while (true) {
-			double value = 0;//optical.get_hue();
+			double value = optical.get_hue();
 			// 0 is none, 1 is red, 2 is blue;
 			int ringType = 0;
-			if (value >= 10 && value <= 40) ringType = 1;
-			else if (value >= 180) ringType = 2;
+			if (value >= 10 && value <= 30) ringType = 1;
+			else if (value >= 80) ringType = 2;
 			if (ringType!= 0 && ringType != targetType){
-				intake.move_velocity(600);
-				pros::delay(110);
-				intake.move_velocity(0);
-				pros::delay(400);
+				intake.move_voltage(12000);
+				pros::delay(155);
+				intake.move_voltage(-6000);
+				pros::delay(100);
 				continue;
 			}
-			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(500);
-			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-500);
-			else intake.move_velocity(0);
 
-            pros::delay(20);
+			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(600);
+			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-600);
+			else intake.move_velocity(0);
+	
+            pros::delay(5);
         }
     });
 
 	double desiredPos = 0;
-
+	ringType.state = 1;
 	while(true){
 		int lateral = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
 		int steering = sticks.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 		//blue is 180 220
 		//red is 10 40
 
-		chassis.arcade(lateral, steering, false, .6);
+		chassis.curvature(lateral, steering);
 		
 		clampLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R1));
 		clamp.set_value(clampLatch.state);
@@ -307,11 +412,14 @@ void opcontrol() {
 		doinkerLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_UP));
 		doinker.set_value(doinkerLatch.state);
 
+		ringType.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN));
+		targetType = 3-(ringType.state+1);
+
 
 		armLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_Y));
 		if (armLatch.state == 0) desiredPos = 0;
 		else if (armLatch.state == 1) desiredPos = 124;
-		else if (armLatch.state == 2) desiredPos = 690;
+		else if (armLatch.state == 2) desiredPos = 666;
 		double output = armPID.update(desiredPos - armEncoder.get_value());
 		armMotor.move_velocity(output);
 		
