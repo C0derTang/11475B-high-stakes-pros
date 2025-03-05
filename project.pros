@@ -1,7 +1,7 @@
 {
   "py/object": "pros.conductor.project.Project",
   "py/state": {
-    "project_name": "queerdrive",
+    "project_name": "redRingRush",
     "target": "v5",
     "templates": {
       "LemLib": {
