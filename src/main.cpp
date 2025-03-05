@@ -205,21 +205,20 @@ void competition_initialize() {}
 
 void blueSoloAWP(){
 	chassis.setPose(0, 0, 270);
-	chassis.moveToPoint(24, 0 ,2000, {.forwards=false}, false);
+	chassis.moveToPoint(20, 0 ,2000, {.forwards=false}, false);
 	chassis.moveToPoint(16, 0,  2000, {}, false);
 	chassis.turnToHeading(180, 2000, {}, false);
-	chassis.moveToPoint(16,-8,2000,{},false);
+	chassis.moveToPoint(16,-8,500,{},false);
 	spintake = 1;
-	pros::delay(1000);
+	pros::delay(600);
 	spintake = 0;
 
 	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
 	spintake = 1;
-	chassis.moveToPose(-33,34, -270, 2000, {.forwards=false, .lead=-.4,}, false);
-	pros::delay(400);
+	chassis.moveToPose(-30,34, -270, 2000, {.forwards=false, .lead=-.4,}, false);
+	pros::delay(300);
 	spintake = 0;
-	chassis.moveToPose(-8,30, 90,2000,{.lead=.3}, false);
-	pros::delay(500);
+	chassis.moveToPose(-8,30, 90,1500,{.lead=.3}, false);
 	spintake = 1;
 
 	//chassis.moveToPose(25, 35, 175, 2000);
