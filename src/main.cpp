@@ -1,7 +1,7 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
-#include "pros/rtos.hpp"
-
+#include "pros/abstract_motor.hpp"
+#include "pros/motors.h"
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
 pros::Motor tL(1, pros::MotorGears::green);
@@ -62,14 +62,12 @@ Toggle doinkerLatch(2);
 Toggle ringType(2);
 
 pros::adi::Encoder leftEncoder({14,'a', 'b'}, true);
-pros::adi::Encoder rightEncoder({14,'f', 'e'}, true);
 pros::adi::Encoder backEncoder({14,'c', 'd'}, true);
 
 pros::adi::Encoder armEncoder('a', 'b');
 
 
 lemlib::TrackingWheel leftWheel(&leftEncoder, lemlib::Omniwheel::NEW_275, -4.5);
-lemlib::TrackingWheel rightWheel(&rightEncoder, lemlib::Omniwheel::NEW_275, 4.5);
 lemlib::TrackingWheel backWheel(&backEncoder, lemlib::Omniwheel::NEW_275, 1.9);
 
 lemlib::OdomSensors odom(&leftWheel,
@@ -82,9 +80,21 @@ lemlib::OdomSensors odom(&leftWheel,
 
 
 lemlib::ControllerSettings lateralPID(
-	17.4,
-	.1,
-	60,
+	11,
+	0,
+	54,
+	3, // anti windup
+    1, // small error range, in inches
+    100, // small error range timeout, in milliseconds
+    3, // large error range, in inches
+    500, // large error range timeout, in milliseconds
+    12
+);
+
+lemlib::ControllerSettings steeringPID(
+	5,
+	0,
+	30,
 	3, // anti windup
     1, // small error range, in inches
     100, // small error range timeout, in milliseconds
@@ -93,9 +103,21 @@ lemlib::ControllerSettings lateralPID(
     20
 );
 
-lemlib::ControllerSettings steeringPID(
-	8,
-	1,
+lemlib::ControllerSettings mogolateralPID(
+	14.2,
+	0,
+	50,
+	3, // anti windup
+    1, // small error range, in inches
+    100, // small error range timeout, in milliseconds
+    3, // large error range, in inches
+    500,
+	12
+);
+
+lemlib::ControllerSettings mogosteeringPID(
+	7,
+	0,
 	50,
 	3, // anti windup
     1, // small error range, in inches
@@ -134,6 +156,14 @@ lemlib::Chassis chassis(drivetrain,
 						&steeringCurve
 );
 
+
+lemlib::Chassis mogochassis(drivetrain,
+	mogolateralPID,
+	mogosteeringPID,
+	odom,
+	&lateralCurve,
+	&steeringCurve
+);
 
 
 /**
@@ -202,6 +232,7 @@ void competition_initialize() {}
  * from where it left off.
  */
  int spintake = 0;
+ bool clampready = true;
 
 void blueSoloAWP(){
 	chassis.setPose(0, 0, 270);
@@ -213,12 +244,12 @@ void blueSoloAWP(){
 	pros::delay(600);
 	spintake = 0;
 
-	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
+	mogochassis.moveToPoint(16,2,1000,{.forwards=false},false);
 	spintake = 1;
-	chassis.moveToPose(-30,34, -270, 2000, {.forwards=false, .lead=-.4,}, false);
-	pros::delay(300);
+	mogochassis.moveToPose(-30,34, -270, 2000, {.forwards=false, .lead=-.4,}, false);
+	pros::delay(200);
 	spintake = 0;
-	chassis.moveToPose(-8,30, 90,1500,{.lead=.3}, false);
+	mogochassis.moveToPose(-8,30, 90,1500,{.lead=.3}, false);
 	spintake = 1;
 
 	//chassis.moveToPose(25, 35, 175, 2000);
@@ -231,6 +262,88 @@ void blueSoloAWP(){
 	//chassis.moveToPose(15, -21, 150, 2000);
 
 }
+
+void skills(){
+	chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
+	mogochassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
+	chassis.setPose(0,-16,180);
+	mogochassis.setPose(0,-16,180);
+
+	//alliance
+	spintake = 1;
+	pros::delay(500);
+	spintake = 0;
+	//pickup first mogo
+	chassis.moveToPoint(0, -4, 500, {.forwards=false}, false);
+	chassis.moveToPose(-26, 1, -90, 1700, {.lead=.3}, false);
+	//pickup first two disks
+	spintake=1;
+	mogochassis.moveToPose(-24, 24, 180, 2000, {.forwards=false, .lead=.3}, false);
+	mogochassis.moveToPose(-45, 75, 180, 2500, {.forwards=false, .lead=.5}, false);
+	pros::delay(400);
+	//ladybrown first
+	mogochassis.moveToPoint(-42, 46,  2000, {}, false);
+	armLatch.state=1;
+	spintake=1;
+	mogochassis.moveToPose(-60, 46.5, 90, 2000, {.forwards=false, .lead=.3}, false);
+	pros::delay(50);
+	spintake=0;
+	armLatch.state=2;
+	mogochassis.moveToPose(-62.5, 46.5, 90, 1500, {.forwards=false});
+	pros::delay(400);
+	mogochassis.moveToPose(-56, 48, 90, 1200, {}, false);
+	armLatch.state=0;
+	//corner rings
+	spintake=1;
+	mogochassis.moveToPose(-46, 22, 0, 2000, {.forwards=false, .lead=.3}, false);
+	mogochassis.moveToPose(-46, 0, 0, 2000, {.forwards=false, .lead=.3}, false);
+	mogochassis.moveToPose(-46, -13, 0, 2000, {.forwards=false, .lead=.3}, false);
+	mogochassis.moveToPose(-46, 3, 0, 2000, {.lead=.3}, false);
+	mogochassis.moveToPose(-60, 0, 90, 2000, {.forwards=false, .lead=.3}, false);
+	//deposit
+	mogochassis.moveToPose(-61, -12, 225, 2000, {.lead=-.2}, false);
+	clampready=false;
+	spintake=0;
+	pros::delay(400);
+	//grab 2nd mogo
+	mogochassis.moveToPose(-48, 0, 240, 1000, {.forwards=false, .lead=.3}, false);
+	chassis.moveToPose(0, 0, 90, 2300, {}, false);
+	clampready=true;
+	chassis.moveToPose(28, 0, 90, 2000, {}, false);
+	//2nd two rings
+	spintake=1;
+	mogochassis.moveToPose(24, 24, 180, 2000, {.forwards=false, .lead=.3}, false);
+	mogochassis.moveToPose(48, 75, 180, 2000, {.forwards=false, .lead=.5}, false);
+	//right ladybrown
+	mogochassis.moveToPoint(44, 48,  2000, {}, false);
+	armLatch.state=1;
+	spintake=1;
+	mogochassis.moveToPose(62, 48, 270, 2000, {.forwards=false}, false);
+	pros::delay(50);
+	spintake=0;
+	armLatch.state=2;
+	mogochassis.moveToPose(64, 48, 270, 1500, {.forwards=false});
+	pros::delay(400);
+	mogochassis.moveToPose(44, 48, 270, 2000, {}, false);
+	armLatch.state=0;
+		//corner rings
+		spintake=1;
+		mogochassis.moveToPose(46, 24, 0, 2000, {.forwards=false, .lead=.3}, false);
+		mogochassis.moveToPose(46, 0, 0, 2000, {.forwards=false, .lead=.3}, false);
+		mogochassis.moveToPose(46, -16, 0, 2000, {.forwards=false, .lead=.3}, false);
+		mogochassis.moveToPose(46, 0, 0, 2000, {.lead=.3}, false);
+		mogochassis.moveToPose(60, -3, 270, 2000, {.forwards=false, .lead=.3}, false);
+		//deposit
+		mogochassis.moveToPose(60, -18, 120, 2000, {.lead=.3}, false);
+		clampready=false;
+		spintake=0;
+		pros::delay(400);
+		//grab 2nd mogo
+		mogochassis.moveToPose(48, 0, 120, 1000, {.forwards=false, .lead=.3}, false);
+	
+}
+
+
 bool AUTON = false;
 void autonomous() {
 	AUTON = true;
@@ -252,32 +365,46 @@ void autonomous() {
 				continue;
 			}
 
-			if (spintake == 1) intake.move_velocity(600);
-			else if (spintake == 2) intake.move_velocity(-600);
+			if (spintake == 1) intake.move_velocity(500);
+			else if (spintake == 2) intake.move_velocity(-500);
 			else intake.move_velocity(0);
 	
-            pros::delay(5);
+            pros::delay(6);
         }
     });
 
-	bool clampready = true;
 	pros::Task autoclamp([&]() {
+		bool latch = false;
         while (AUTON) {
 			if (clampready && distanceSensor.get() < 50){
 				pros::delay(50);
+				latch = true;
 				clamp.set_value(true);
 			}
-			else{
+			else if (clampready && latch){
+				clamp.set_value(true);
+			}else{
 				clamp.set_value(false);
+				latch = false;
 			}
 	
-            pros::delay(5);
+            pros::delay(6);
         }
     });
 
-
-	blueSoloAWP();
-	//chassis.moveToPose(0, , 0, 2000);
+	pros::Task arm([&]() {
+		bool latch = false;
+		int desiredPos=0;
+        while (AUTON) {
+			if (armLatch.state == 0) desiredPos = 0;
+			else if (armLatch.state == 1) desiredPos = 120;
+			else if (armLatch.state == 2) desiredPos = 666;
+			double output = armPID.update(desiredPos - armEncoder.get_value());
+			armMotor.move_velocity(output);	
+            pros::delay(10);
+        }
+    });
+	skills();
 }
 
 /**
@@ -313,8 +440,8 @@ void opcontrol() {
 				continue;
 			}
 
-			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(600);
-			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-600);
+			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(500);
+			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-500);
 			else intake.move_velocity(0);
 	
             pros::delay(5);
@@ -341,9 +468,9 @@ void opcontrol() {
 
 
 		armLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_Y));
-		if (armLatch.state == 0) desiredPos = -5;
-		else if (armLatch.state == 1) desiredPos = 60;
-		else if (armLatch.state == 2) desiredPos = 590;
+		if (armLatch.state == 0) desiredPos = 0;
+		else if (armLatch.state == 1) desiredPos = 120;
+		else if (armLatch.state == 2) desiredPos = 666;
 		double output = armPID.update(desiredPos - armEncoder.get_value());
 		armMotor.move_velocity(output);
 		

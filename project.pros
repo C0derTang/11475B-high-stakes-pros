@@ -1,7 +1,7 @@
 {
   "py/object": "pros.conductor.project.Project",
   "py/state": {
-    "project_name": "redRingRush",
+    "project_name": "skills",
     "target": "v5",
     "templates": {
       "LemLib": {
@@ -298,8 +298,9 @@
       }
     },
     "upload_options": {
-      "icon": "clawbot",
-      "slot": 7
+      "icon": "pizza",
+      "slot": 1,
+      "description": "cancer"
     },
     "use_early_access": false
   }
