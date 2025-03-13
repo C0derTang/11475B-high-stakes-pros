@@ -263,7 +263,6 @@ void initialize() {
 			else sticks.set_text(1, 0, "blue");
             // delay to save resources
             pros::delay(50);
-			pros::screen::touch_callback()
         }
     });
 	
