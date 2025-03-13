@@ -1,7 +1,8 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
-#include "pros/abstract_motor.hpp"
-#include "pros/motors.h"
+#include "liblvgl/llemu.hpp"
+#include "pros/screen.hpp"
+
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
 pros::Motor tL(1, pros::MotorGears::green);
@@ -173,8 +174,73 @@ lemlib::Chassis mogochassis(drivetrain,
  * to keep execution time for this mode under a few seconds.
  */
  int targetType = 1;
+int autonum = 0;
+bool selecting=true;
+
+void prevauto(){
+	--autonum;
+}
+void selectauto(){
+	selecting=false;
+}
+void nextauto(){
+	++autonum;
+}
+
 void initialize() {
     pros::lcd::initialize(); // initialize brain screen
+	pros::lcd::register_btn0_cb(prevauto);
+	pros::lcd::register_btn1_cb(selectauto);
+	pros::lcd::register_btn2_cb(nextauto);
+	
+	//minimal auton selector
+	while(selecting){
+		pros::lcd::print(1, "Battery %: %d", pros::battery::get_capacity());
+		pros::lcd::set_text(3, "Selected Auton:");
+
+		autonum = (autonum+11)%11;
+
+		switch(autonum){
+			case 0:
+				pros::lcd::set_text(4, "Skills");
+				break;
+			case 1:
+				pros::lcd::set_text(4, "Red Solo AWP");
+				break;
+			case 2:
+				pros::lcd::set_text(4, "Blue Solo AWP");
+				break;
+			case 3:
+				pros::lcd::set_text(4, "Red Ringside");
+				break;
+			case 4:
+				pros::lcd::set_text(4, "Blue Ringside");
+				break;
+			case 5:
+				pros::lcd::set_text(4, "Red Stakeside");
+				break;
+			case 6:
+				pros::lcd::set_text(4, "Blue Stakeside");
+				break;
+			case 7:
+				pros::lcd::set_text(4, "Red Ring Finals");
+				break;
+			case 8:
+				pros::lcd::set_text(4, "Blue Ring Finals");
+				break;
+			case 9:
+				pros::lcd::set_text(4, "Red Stake Finals");
+				break;
+			case 10:
+				pros::lcd::set_text(4, "Blue Stake Finals");
+				break;
+		}
+		pros::delay(20);
+	}
+
+
+
+
     chassis.calibrate(); // calibrate sensors
 	armMotor.set_brake_mode_all(pros::MotorBrake::hold);
 	intake.set_brake_mode_all(pros::MotorBrake::brake);
@@ -197,6 +263,7 @@ void initialize() {
 			else sticks.set_text(1, 0, "blue");
             // delay to save resources
             pros::delay(50);
+			pros::screen::touch_callback()
         }
     });
 	
@@ -218,6 +285,7 @@ void disabled() {}
  * This task will exit when the robot is enabled and autonomous or opcontrol
  * starts.
  */
+
 void competition_initialize() {}
 
 /**
@@ -234,33 +302,142 @@ void competition_initialize() {}
  int spintake = 0;
  bool clampready = true;
 
-void blueSoloAWP(){
+void redRingSide(){
+		//7 inches forward is edge of tile
+	// 7.5 inches off left
+	// alliance
 	chassis.setPose(0, 0, 270);
-	chassis.moveToPoint(20, 0 ,2000, {.forwards=false}, false);
-	chassis.moveToPoint(16, 0,  2000, {}, false);
+	chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
+	chassis.moveToPoint(13, 0,  2000, {}, false);
 	chassis.turnToHeading(180, 2000, {}, false);
-	chassis.moveToPoint(16,-8,500,{},false);
+	chassis.moveToPoint(13,-8,500,{},false);
 	spintake = 1;
 	pros::delay(600);
 	spintake = 0;
-
-	mogochassis.moveToPoint(16,2,1000,{.forwards=false},false);
+	// grab 1st disk
+	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
 	spintake = 1;
-	mogochassis.moveToPose(-30,34, -270, 2000, {.forwards=false, .lead=-.4,}, false);
-	pros::delay(200);
+	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
+	pros::delay(100);
 	spintake = 0;
-	mogochassis.moveToPose(-8,30, 90,1500,{.lead=.3}, false);
+	// clamp
+	chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
 	spintake = 1;
+	//middle stack disks
+	mogochassis.moveToPose(-27,51, 180,2000,{.forwards=false, .maxSpeed=80}, false);
+	mogochassis.moveToPose(-27,30, 180,1500,{.lead=.5}, false);
+	mogochassis.moveToPose(-33,48, 180,2000,{.forwards=false, .lead=.5, .maxSpeed=80}, false);
+	mogochassis.moveToPose(-33, 20, 180,1500,{ .lead=-.5, .maxSpeed=80}, false);
+	// touch bar
+	armLatch.state=2;
+	mogochassis.moveToPose(6,40, 225,2000,{.forwards=false, .lead=.5}, false);
+};
+void blueRingSide(){
+	//7 inches forward is edge of tile
+// 7.5 inches off left
+// alliance
+chassis.setPose(0, 0, 270);
+chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
+chassis.moveToPoint(13, 0,  2000, {}, false);
+chassis.turnToHeading(180, 2000, {}, false);
+chassis.moveToPoint(13,-8,500,{},false);
+spintake = 1;
+pros::delay(600);
+spintake = 0;
+// grab 1st disk
+chassis.moveToPoint(16,2,1000,{.forwards=false},false);
+spintake = 1;
+chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
+pros::delay(100);
+spintake = 0;
+// clamp
+chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
+spintake = 1;
+//middle stack disks
+mogochassis.moveToPose(-27,51, 180,2000,{.forwards=false, .maxSpeed=80}, false);
+mogochassis.moveToPose(-27,30, 180,1500,{.lead=.5}, false);
+mogochassis.moveToPose(-33,48, 180,2000,{.forwards=false, .lead=.5, .maxSpeed=80}, false);
+mogochassis.moveToPose(-33, 20, 180,1500,{ .lead=-.5, .maxSpeed=80}, false);
+// touch bar
+armLatch.state=2;
+mogochassis.moveToPose(6,40, 225,2000,{.forwards=false, .lead=.5}, false);
+};
 
-	//chassis.moveToPose(25, 35, 175, 2000);
-	//chassis.moveToPose(12, 45.5, 290, 2000);
-	//chassis.moveToPose(20, 35.5, 120, 2000);
-	//chassis.moveToPose(14, 39.5, 120, 2000);
-	//chassis.moveToPose(41, 6.5, 320, 2000);
-	//chassis.moveToPose(28, -14, 200, 2000);
-	//chassis.moveToPose(24, -39, 0, 2000);
-	//chassis.moveToPose(15, -21, 150, 2000);
 
+void redSoloAWP(){
+	//7 inches forward is edge of tile
+	// 7.5 inches off left
+	// alliance stake
+	chassis.setPose(0, 0, 270);
+	chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
+	chassis.moveToPoint(13, 0,  2000, {}, false);
+	chassis.turnToHeading(180, 2000, {}, false);
+	chassis.moveToPoint(13,-8,500,{},false);
+	spintake = 1;
+	pros::delay(600);
+	spintake = 0;
+	// grab first disc
+	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
+	spintake = 1;
+	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
+	pros::delay(100);
+	spintake = 0;
+	//grab mogo
+	chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
+	spintake = 1;
+	// deposit
+	mogochassis.moveToPose(74,-2, 135,1500,{.lead=.2}, false);
+	clampready=false;
+	spintake=0;
+	//grab 2nd mogo
+	chassis.moveToPose(44,0, 90,1500,{.forwards=false, .lead=.5}, false);
+	clampready=true;
+	chassis.moveToPose(44, 30, 0,1500,{ .lead=.1}, false);
+	//grab 2nd disc
+	spintake=true;
+	mogochassis.moveToPose(70, 36, 270, 2000, {.forwards=false, .lead=.2}, false);
+	// ladder touch
+	armLatch.state=2;
+	mogochassis.moveToPose(36, 40, 135, 2000, {.forwards=false, .lead=.3}, false);
+	spintake=0;
+}
+
+void blueSoloAWP(){
+	//7 inches forward is edge of tile
+	// 7.5 inches off left
+	// alliance stake
+	chassis.setPose(0, 0, 90);
+	chassis.moveToPoint(-18, 0 ,2000, {.forwards=false}, false);
+	chassis.moveToPoint(-13, 0,  2000, {}, false);
+	chassis.turnToHeading(180, 2000, {}, false);
+	chassis.moveToPoint(-13,-8,500,{},false);
+	spintake = 1;
+	pros::delay(600);
+	spintake = 0;
+	// grab first disc
+	chassis.moveToPoint(-16,2,1000,{.forwards=false},false);
+	spintake = 1;
+	chassis.moveToPose(32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
+	pros::delay(100);
+	spintake = 0;
+	//grab mogo
+	chassis.moveToPose(4,32, 270,1500,{.lead=.3}, false);
+	spintake = 1;
+	// deposit
+	mogochassis.moveToPose(-74,-2, 225,1500,{.lead=.2}, false);
+	clampready=false;
+	spintake=0;
+	//grab 2nd mogo
+	chassis.moveToPose(-44,0, 270,1500,{.forwards=false, .lead=.5}, false);
+	clampready=true;
+	chassis.moveToPose(-44, 30, 0,1500,{ .lead=.1}, false);
+	//grab 2nd disc
+	spintake=true;
+	mogochassis.moveToPose(-70, 36, 90, 2000, {.forwards=false, .lead=.2}, false);
+	// ladder touch
+	armLatch.state=2;
+	mogochassis.moveToPose(-36, 40, 225, 2000, {.forwards=false, .lead=.3}, false);
+	spintake=0;
 }
 
 void skills(){
@@ -404,7 +581,42 @@ void autonomous() {
             pros::delay(10);
         }
     });
-	skills();
+	//skills();
+	switch (autonum) {
+		case 0:
+			skills();
+			break;
+		case 1:
+			redSoloAWP();
+			break;
+		case 2:
+			blueSoloAWP();
+			break;
+		case 3:
+			redRingSide();
+			break;
+		case 4:
+			blueRingSide();
+			break;
+		case 5:
+			redRingSide();
+			break;
+		case 6:
+			blueRingSide();
+			break;
+		case 7:
+			redRingSide();
+			break;
+		case 8:
+			blueRingSide();
+			break;
+		case 9:
+			redRingSide();
+			break;
+		case 10:
+			blueRingSide();
+			break;
+	}
 }
 
 /**
