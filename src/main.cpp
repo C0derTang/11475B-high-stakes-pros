@@ -236,7 +236,7 @@ void initialize() {
 		pros::delay(20);
 	}
 	*/
-	autonum=3;
+	autonum=4;
 
 
 
@@ -426,33 +426,22 @@ void redStakeSide(){
 
 	chassis.moveToPose(-37.5, 32.5, 315, 3000, {.lead=.2, .maxSpeed=100}, false);
 	spintake=1;
-	mogochassis.moveToPose(-10, 33, 180, 3000, {.forwards=false, .lead=.8}, false);
+	mogochassis.moveToPose(-10, 33, 180, 3000, {.forwards=false, .lead=.3}, false);
 }
 void blueStakeSide(){
-	// alliance
-	chassis.setPose(0, 0, 270);
-	chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
-	chassis.moveToPoint(13, 0,  2000, {}, false);
-	chassis.turnToHeading(180, 2000, {}, false);
-	chassis.moveToPoint(13,-8,500,{},false);
-	spintake = 1;
-	pros::delay(600);
-	spintake = 0;
-	//clear
-	chassis.turnToHeading(90, 1000);
+	chassis.setPose(0, 0, 180);
+	chassis.moveToPose(5, 40, 220, 1300, {.forwards=false, .lead=.2}, false);
 	doinker.set_value(true);
-	chassis.moveToPose(-46,-2,90,2000,{.forwards=false, .lead=.5},false);
-	chassis.turnToHeading(180, 2000);
+	pros::delay(300);
+	//chassis.moveToPose(0, 20, 180, 500, { .lead=.2}, false);
+	chassis.moveToPose(5, 10, 180, 1000, { .lead=.2}, false);
 	doinker.set_value(false);
-	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
-	spintake = 1;
-	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
-	pros::delay(100);
-	spintake = 0;
-	//grab mogo
-	chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
-	spintake = 1;//middle stack disks
-	mogochassis.moveToPose(10, 36, 45, 1000, {.lead=.2}, false);
+
+
+	chassis.moveToPose(37.5, 32.5, 45, 3000, {.lead=.2, .maxSpeed=100}, false);
+	spintake=1;
+	mogochassis.moveToPose(10, 35, 180, 3000, {.forwards=false, .lead=.3}, false);
+
 }
 void redStakeFinals(){
 	chassis.setPose(0, 0, 180);
