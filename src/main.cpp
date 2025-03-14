@@ -1,7 +1,6 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
-#include "liblvgl/llemu.hpp"
-#include "pros/screen.hpp"
+#include "pros/rtos.hpp"
 
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
@@ -23,6 +22,10 @@ pros::Motor firstStageIntake(11, pros::MotorGears::blue);
 pros::Motor secondStageIntake(16, pros::MotorGears::blue);
 
 pros::MotorGroup intake({11, 16});
+
+
+pros::Motor armMotor1(-6, pros::MotorGears::green);
+pros::Motor armMotor2(5, pros::MotorGears::green);
 
 pros::MotorGroup armMotor({-6, 5});
 
@@ -194,50 +197,46 @@ void initialize() {
 	pros::lcd::register_btn2_cb(nextauto);
 	
 	//minimal auton selector
+	/*
 	while(selecting){
 		pros::lcd::print(1, "Battery %: %d", pros::battery::get_capacity());
 		pros::lcd::set_text(3, "Selected Auton:");
 
-		autonum = (autonum+11)%11;
+		autonum = (autonum+9)%9;
 
 		switch(autonum){
 			case 0:
 				pros::lcd::set_text(4, "Skills");
 				break;
 			case 1:
-				pros::lcd::set_text(4, "Red Solo AWP");
-				break;
-			case 2:
-				pros::lcd::set_text(4, "Blue Solo AWP");
-				break;
-			case 3:
 				pros::lcd::set_text(4, "Red Ringside");
 				break;
-			case 4:
+			case 2:
 				pros::lcd::set_text(4, "Blue Ringside");
 				break;
-			case 5:
+			case 3:
 				pros::lcd::set_text(4, "Red Stakeside");
 				break;
-			case 6:
+			case 4:
 				pros::lcd::set_text(4, "Blue Stakeside");
 				break;
-			case 7:
+			case 5:
 				pros::lcd::set_text(4, "Red Ring Finals");
 				break;
-			case 8:
+			case 6:
 				pros::lcd::set_text(4, "Blue Ring Finals");
 				break;
-			case 9:
+			case 7:
 				pros::lcd::set_text(4, "Red Stake Finals");
 				break;
-			case 10:
+			case 8:
 				pros::lcd::set_text(4, "Blue Stake Finals");
 				break;
 		}
 		pros::delay(20);
 	}
-
+	*/
+	autonum=3;
 
 
 
@@ -245,8 +244,6 @@ void initialize() {
 	armMotor.set_brake_mode_all(pros::MotorBrake::hold);
 	intake.set_brake_mode_all(pros::MotorBrake::brake);
 	armEncoder.reset();	
-    // print position to brain screen
-	ringType.state = 1;
 
 	optical.set_led_pwm(100);
     pros::Task screen_task([&]() {
@@ -306,32 +303,58 @@ void redRingSide(){
 	// 7.5 inches off left
 	// alliance
 	chassis.setPose(0, 0, 270);
-	chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
-	chassis.moveToPoint(13, 0,  2000, {}, false);
-	chassis.turnToHeading(180, 2000, {}, false);
+	chassis.moveToPoint(18, 0 ,1200, {.forwards=false}, false);
+	chassis.moveToPoint(13, 0,  1000, {}, false);
+	chassis.turnToHeading(180, 800, {}, false);
 	chassis.moveToPoint(13,-8,500,{},false);
 	spintake = 1;
 	pros::delay(600);
 	spintake = 0;
-	// grab 1st disk
-	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
+	// grab first disc
+	chassis.moveToPoint(16,2,500,{.forwards=false},false);
 	spintake = 1;
-	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
-	pros::delay(100);
+	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3, .maxSpeed=110}, false);
+	pros::delay(130);
 	spintake = 0;
-	// clamp
-	chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
+	//grab mogo
+	chassis.moveToPose(-2,29, 90,1600,{.lead=.3, }, false);
 	spintake = 1;
+	pros::delay(300);
 	//middle stack disks
-	mogochassis.moveToPose(-27,51, 180,2000,{.forwards=false, .maxSpeed=80}, false);
-	mogochassis.moveToPose(-27,30, 180,1500,{.lead=.5}, false);
-	mogochassis.moveToPose(-33,48, 180,2000,{.forwards=false, .lead=.5, .maxSpeed=80}, false);
-	mogochassis.moveToPose(-33, 20, 180,1500,{ .lead=-.5, .maxSpeed=80}, false);
+	mogochassis.moveToPose(-27,51.5, 180,1800,{.forwards=false, .maxSpeed=85}, false);
+	mogochassis.moveToPose(-27,30, 180,1000,{.lead=.5}, false);
 	// touch bar
 	armLatch.state=2;
-	mogochassis.moveToPose(6,40, 225,2000,{.forwards=false, .lead=.5}, false);
+	mogochassis.moveToPose(4,40, 225,2000,{.forwards=false, .lead=.2}, false);
 };
 void blueRingSide(){
+	chassis.setPose(0, 0, 90);
+	chassis.moveToPoint(-18, 0 ,1200, {.forwards=false}, false);
+	chassis.moveToPoint(-13, 0,  1000, {}, false);
+	chassis.turnToHeading(180, 800, {}, false);
+	chassis.moveToPoint(-13,-8,500,{},false);
+	spintake = 1;
+	pros::delay(600);
+	spintake = 0;
+	// grab first disc
+	chassis.moveToPoint(-16,2,500,{.forwards=false},false);
+	spintake = 1;
+	chassis.moveToPose(30,36, 0, 2000, {.forwards=false, .lead=-.3, .maxSpeed=110}, false);
+	pros::delay(130);
+	spintake = 0;
+	//grab mogo
+	chassis.moveToPose(2,32, 270,1600,{.lead=.3, }, false);
+	spintake = 1;
+	pros::delay(300);
+	//middle stack disks
+	mogochassis.moveToPose(27,51.5, 180,1800,{.forwards=false, .maxSpeed=85}, false);
+	mogochassis.moveToPose(27,30, 180,1000,{.lead=.5}, false);
+	// touch bar
+	armLatch.state=2;
+	mogochassis.moveToPose(-2,38, 135,2000,{.forwards=false, .lead=.2}, false);
+
+};
+void redRingFinals(){
 	//7 inches forward is edge of tile
 // 7.5 inches off left
 // alliance
@@ -357,10 +380,88 @@ mogochassis.moveToPose(-27,51, 180,2000,{.forwards=false, .maxSpeed=80}, false);
 mogochassis.moveToPose(-27,30, 180,1500,{.lead=.5}, false);
 mogochassis.moveToPose(-33,48, 180,2000,{.forwards=false, .lead=.5, .maxSpeed=80}, false);
 mogochassis.moveToPose(-33, 20, 180,1500,{ .lead=-.5, .maxSpeed=80}, false);
-// touch bar
-armLatch.state=2;
-mogochassis.moveToPose(6,40, 225,2000,{.forwards=false, .lead=.5}, false);
+mogochassis.moveToPose(69,-2, 90,3000,{.lead=.2}, false);
 };
+void blueRingFinals(){
+//7 inches forward is edge of tile
+// 7.5 inches off left
+// alliance
+chassis.setPose(0, 0, 90);
+	chassis.moveToPoint(-18, 0 ,2000, {.forwards=false}, false);
+	chassis.moveToPoint(-13, 0,  2000, {}, false);
+	chassis.turnToHeading(180, 2000, {}, false);
+	chassis.moveToPoint(-13,-8,500,{},false);
+	spintake = 1;
+	pros::delay(600);
+	spintake = 0;
+	// grab first disc
+	chassis.moveToPoint(-16,2,1000,{.forwards=false},false);
+	spintake = 1;
+	chassis.moveToPose(32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
+	pros::delay(100);
+	spintake = 0;
+	//grab mogo
+	chassis.moveToPose(4,32, 270,1500,{.lead=.3}, false);
+	spintake = 1;//middle stack disks
+mogochassis.moveToPose(27,51, 180,2000,{.forwards=false, .maxSpeed=80}, false);
+mogochassis.moveToPose(27,30, 180,1500,{.lead=.5}, false);
+mogochassis.moveToPose(33,48, 180,2000,{.forwards=false, .lead=.5, .maxSpeed=80}, false);
+mogochassis.moveToPose(33, 20, 180,1500,{ .lead=-.5, .maxSpeed=80}, false);
+
+mogochassis.moveToPose(-69,-2, 270,3000,{.lead=.2}, false);
+
+};
+
+
+void redStakeSide(){
+	// alliance
+
+	chassis.setPose(0, 0, 180);
+	chassis.moveToPose(-3, 37, 170, 1100, {.forwards=false, .lead=.2}, false);
+	doinker.set_value(true);
+	pros::delay(200);
+	chassis.moveToPose(0, 20, 180, 500, { .lead=.2}, false);
+	doinker.set_value(false);
+	chassis.moveToPose(0, 10, 180, 1000, { .lead=.2}, false);
+
+	chassis.moveToPose(-37.5, 32.5, 315, 3000, {.lead=.2, .maxSpeed=100}, false);
+	spintake=1;
+	mogochassis.moveToPose(-10, 33, 180, 3000, {.forwards=false, .lead=.8}, false);
+}
+void blueStakeSide(){
+	// alliance
+	chassis.setPose(0, 0, 270);
+	chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
+	chassis.moveToPoint(13, 0,  2000, {}, false);
+	chassis.turnToHeading(180, 2000, {}, false);
+	chassis.moveToPoint(13,-8,500,{},false);
+	spintake = 1;
+	pros::delay(600);
+	spintake = 0;
+	//clear
+	chassis.turnToHeading(90, 1000);
+	doinker.set_value(true);
+	chassis.moveToPose(-46,-2,90,2000,{.forwards=false, .lead=.5},false);
+	chassis.turnToHeading(180, 2000);
+	doinker.set_value(false);
+	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
+	spintake = 1;
+	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
+	pros::delay(100);
+	spintake = 0;
+	//grab mogo
+	chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
+	spintake = 1;//middle stack disks
+	mogochassis.moveToPose(10, 36, 45, 1000, {.lead=.2}, false);
+}
+void redStakeFinals(){
+	chassis.setPose(0, 0, 180);
+	chassis.moveToPose(-2, 48, 175, 1600, {.forwards=false, .lead=.2}, false);
+	doinker.set_value(true);
+	chassis.moveToPose(0, 20, 180, 2000, { .lead=.2}, false);
+	doinker.set_value(false);
+}
+void blueStakeFinals(){}
 
 
 void redSoloAWP(){
@@ -370,37 +471,38 @@ void redSoloAWP(){
 	chassis.setPose(0, 0, 270);
 	chassis.moveToPoint(18, 0 ,2000, {.forwards=false}, false);
 	chassis.moveToPoint(13, 0,  2000, {}, false);
-	chassis.turnToHeading(180, 2000, {}, false);
+	chassis.turnToHeading(180, 800, {}, false);
 	chassis.moveToPoint(13,-8,500,{},false);
 	spintake = 1;
 	pros::delay(600);
 	spintake = 0;
 	// grab first disc
-	chassis.moveToPoint(16,2,1000,{.forwards=false},false);
+	chassis.moveToPoint(16,2,500,{.forwards=false},false);
 	spintake = 1;
-	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3,}, false);
-	pros::delay(100);
+	chassis.moveToPose(-32,36, 0, 2000, {.forwards=false, .lead=-.3, .maxSpeed=110}, false);
+	pros::delay(130);
 	spintake = 0;
 	//grab mogo
-	chassis.moveToPose(-4,32, 90,1500,{.lead=.3}, false);
+	chassis.moveToPose(-3,29, 90,1500,{.lead=.3, }, false);
 	spintake = 1;
+	pros::delay(300);
 	// deposit
-	mogochassis.moveToPose(74,-2, 135,1500,{.lead=.2}, false);
+	mogochassis.moveToPose(16.5,2, 90,1000,{.lead=.6}, false);
+	mogochassis.moveToPose(42,0, 90,2000,{.forwards=false, .lead=.4}, false);
 	clampready=false;
 	spintake=0;
 	//grab 2nd mogo
-	chassis.moveToPose(44,0, 90,1500,{.forwards=false, .lead=.5}, false);
+	chassis.moveToPose(38,0, 90,1000,{.forwards=false, .lead=.5, .maxSpeed=115}, false);
 	clampready=true;
-	chassis.moveToPose(44, 30, 0,1500,{ .lead=.1}, false);
+	chassis.moveToPose(38, 36, 0,2000,{ .lead=.1}, false);
 	//grab 2nd disc
 	spintake=true;
-	mogochassis.moveToPose(70, 36, 270, 2000, {.forwards=false, .lead=.2}, false);
+	mogochassis.moveToPose(60, 34, 270, 2000, {.forwards=false, .lead=.2}, false);
 	// ladder touch
 	armLatch.state=2;
-	mogochassis.moveToPose(36, 40, 135, 2000, {.forwards=false, .lead=.3}, false);
+	mogochassis.moveToPose(10, 40, 135, 2000, {.forwards=false, .lead=.3}, false);
 	spintake=0;
 }
-
 void blueSoloAWP(){
 	//7 inches forward is edge of tile
 	// 7.5 inches off left
@@ -527,10 +629,11 @@ void autonomous() {
 	// 1 = forward
 	// 2 = reverse
 	pros::Task intakeFilter([&]() {
+		int ringType=0;
+		if(autonum != 0 && autonum%2 == 0) targetType = 2;
         while (AUTON) {
 			double value = optical.get_hue();
 			// 0 is none, 1 is red, 2 is blue;
-			int ringType = 0;
 			if (value > 7 && value <= 15) ringType = 1;
 			else if (value >= 180) ringType = 2;
 			if (ringType!= 0 && ringType != targetType){
@@ -541,8 +644,8 @@ void autonomous() {
 				continue;
 			}
 
-			if (spintake == 1) intake.move_velocity(500);
-			else if (spintake == 2) intake.move_velocity(-500);
+			if (spintake == 1) intake.move_velocity(600);
+			else if (spintake == 2) intake.move_velocity(-600);
 			else intake.move_velocity(0);
 	
             pros::delay(6);
@@ -586,34 +689,28 @@ void autonomous() {
 			skills();
 			break;
 		case 1:
-			redSoloAWP();
+			redRingSide();
 			break;
 		case 2:
-			blueSoloAWP();
+			blueRingSide();
 			break;
 		case 3:
-			redRingSide();
+			redStakeSide();
 			break;
 		case 4:
-			blueRingSide();
+			blueStakeSide();
 			break;
 		case 5:
-			redRingSide();
+			redRingFinals();
 			break;
 		case 6:
-			blueRingSide();
+			blueRingFinals();
 			break;
 		case 7:
-			redRingSide();
+			redStakeFinals();
 			break;
 		case 8:
-			blueRingSide();
-			break;
-		case 9:
-			redRingSide();
-			break;
-		case 10:
-			blueRingSide();
+			blueStakeFinals();
 			break;
 	}
 }
@@ -651,15 +748,22 @@ void opcontrol() {
 				continue;
 			}
 
-			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(500);
-			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-500);
+			if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) intake.move_velocity(600);
+			else if (sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) intake.move_velocity(-600);
 			else intake.move_velocity(0);
 	
             pros::delay(5);
         }
     });
 
+	// drive record?
+	FILE* filewrite = fopen("/usd/rerun.txt", "w");
+	fprintf(filewrite, "");
+	fclose(filewrite);
+
+	bool record = false;
 	double desiredPos = 0;
+	int oldTime=0;
 	while(true){
 		int lateral = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
 		int steering = sticks.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
@@ -677,7 +781,6 @@ void opcontrol() {
 		ringType.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN));
 		targetType = 3-(ringType.state+1);
 
-
 		armLatch.check(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_Y));
 		if (armLatch.state == 0) desiredPos = 0;
 		else if (armLatch.state == 1) desiredPos = 120;
@@ -686,5 +789,23 @@ void opcontrol() {
 		armMotor.move_velocity(output);
 		
 		pros::delay(10);
+		if(!record) continue;
+		filewrite = fopen("/usd/rerun.txt", "a");
+		//pros::lcd::print(1, "Battery %: %d", pros::battery::get_capacity());
+		fprintf(filewrite, "tL.move_voltage(%d);\n", tL.get_voltage());
+		fprintf(filewrite, "mL.move_voltage(%d);\n", mL.get_voltage());
+		fprintf(filewrite, "bL.move_voltage(%d);\n", bL.get_voltage());
+		fprintf(filewrite, "tR.move_voltage(%d);\n", tR.get_voltage());
+		fprintf(filewrite, "mR.move_voltage(%d);\n", mR.get_voltage());
+		fprintf(filewrite, "bR.move_voltage(%d);\n", bR.get_voltage());
+		fprintf(filewrite, "firstStageIntake.move_voltage(%d);\n", firstStageIntake.get_voltage());
+		fprintf(filewrite, "secondStageIntake.move_voltage(%d);\n", secondStageIntake.get_voltage());
+		fprintf(filewrite, "armMotor1.move_voltage(%d);\n", armMotor1.get_voltage());
+		fprintf(filewrite, "armMotor2.move_voltage(%d);\n", armMotor2.get_voltage());
+		fprintf(filewrite, "clamp.set_value(%i);\n", clampLatch.state);
+
+		fprintf(filewrite, "pros::delay(%i);\n", pros::millis()-oldTime);
+		oldTime = pros::millis();
+		fclose(filewrite);
 	}
 }
